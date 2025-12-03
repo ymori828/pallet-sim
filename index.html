@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>パレット積載シミュレーター (v4.0 スマホ表示最適化版)</title>
+    <title>パレット積載シミュレーター (v4.1 12型追加版)</title>
     <style>
         /* --- 全体設定 --- */
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; } /* 基本は枠線を含める */
+        
         body { 
             font-family: "Helvetica Neue", Arial, sans-serif; 
             height: 100vh; width: 100vw; margin: 0; background: #e0e4e8; 
@@ -102,6 +103,7 @@
             white-space: nowrap;
         }
         .pallet.type-11 { background-color: #2980b9; } 
+        .pallet.type-12 { background-color: #8e44ad; } /* 12型：紫 */
         .pallet.type-14 { background-color: #c0392b; }
         .pallet.type-9  { background-color: #f39c12; color: #333; }
         .pallet.type-custom { background-color: #27ae60; } 
@@ -256,6 +258,11 @@
 
     const PALLETS = [
         { id: '11',  name: "11型 正方形", w: 1100, d: 1100, typeClass: 'type-11' },
+        
+        // 12型を追加 (14型の上)
+        { id: '12v', name: "12型 縦",     w: 1000, d: 1200, typeClass: 'type-12' },
+        { id: '12h', name: "12型 横",     w: 1200, d: 1000, typeClass: 'type-12' },
+
         { id: '14v', name: "14型 縦",     w: 1100, d: 1400, typeClass: 'type-14' },
         { id: '14h', name: "14型 横",     w: 1400, d: 1100, typeClass: 'type-14' },
         { id: '9v',  name: "9型 縦",      w: 900,  d: 1100, typeClass: 'type-9' },
@@ -602,4 +609,3 @@
 
 </body>
 </html>
-
