@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>パレット積載シミュレーター (v3.2 スマホ完全修正版)</title>
+    <title>パレット積載シミュレーター (v3.5 PC/スマホ完全両立版)</title>
     <style>
-        /* --- 基本設定 (PCファースト) --- */
+        /* --- 全体設定 --- */
+        * { box-sizing: border-box; }
         body { 
             font-family: "Helvetica Neue", Arial, sans-serif; 
             height: 100vh; width: 100vw; margin: 0; background: #e0e4e8; 
-            overflow: hidden; /* 画面全体スクロール禁止 */
-            display: flex;
+            overflow: hidden; 
+            display: flex; /* PCは横並び */
+            flex-direction: row; 
         }
         
+        /* --- 共通パーツ --- */
         h2 { margin: 0 0 5px 0; font-size: 15px; color: #2c3e50; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
         .column-header { font-size: 11px; font-weight: bold; color: #7f8c8d; text-transform: uppercase; margin-bottom: 5px; display: block; margin-top: 10px;}
         
@@ -22,49 +25,52 @@
 
         input[type="number"] { width: 55px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size: 12px; }
 
-        /* --- PCレイアウト (3カラム) --- */
+        /* --- PC用レイアウト (左・中・右) --- */
         #left-col {
-            width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #ccc; padding: 15px;
+            width: 260px; min-width: 260px; background: #fff; border-right: 1px solid #ccc; padding: 15px;
             display: flex; flex-direction: column; gap: 5px; z-index: 10; overflow-y: auto;
+            order: 1; /* 左 */
         }
 
         #center-col {
             flex: 1;
             background: #cbd3da;
             position: relative;
-            overflow: hidden; 
+            overflow: hidden;
             display: flex; justify-content: center; align-items: center;
             padding: 60px 20px 20px 20px;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+            order: 2; /* 中 */
         }
 
         #right-col {
             width: 260px; min-width: 260px; background: #fff; border-left: 1px solid #ccc; padding: 15px;
             display: flex; flex-direction: column; gap: 8px; z-index: 10; overflow-y: auto;
+            order: 3; /* 右 */
         }
 
-        /* --- モバイル用タブ (PCでは非表示) --- */
+        /* PCではモバイル用パーツを隠す */
         #mobile-tabs { display: none; }
         .mobile-only { display: none; }
 
         /* --- UIパーツ --- */
-        .truck-btn { padding: 8px; text-align: left; display: flex; flex-direction: column; gap: 2px; width: 100%; margin-bottom: 3px; }
+        .truck-btn { padding: 10px; text-align: left; display: flex; flex-direction: column; gap: 2px; width: 100%; margin-bottom: 5px; border: 1px solid #ccc; background: #fff;}
         .truck-btn strong { color: #333; font-size: 13px; }
         .truck-btn small { color: #666; font-size: 10px; }
         .truck-btn.active { background: #2c3e50; border-color: #1a252f; }
         .truck-btn.active strong { color: #fff; }
         .truck-btn.active small { color: #bbb; }
 
-        .custom-area { background: #f1f8ff; padding: 8px; border-radius: 4px; border: 1px dashed #aaddff; }
+        .custom-area { background: #f1f8ff; padding: 10px; border-radius: 4px; border: 1px dashed #aaddff; margin-bottom: 10px; }
         .input-group { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 12px; }
-        .btn-apply { width: 100%; background: #3498db; color: white; border: none; padding: 6px; margin-top: 4px; font-size: 12px; }
+        .btn-apply { width: 100%; background: #3498db; color: white; border: none; padding: 8px; margin-top: 4px; font-size: 12px; border-radius: 4px;}
 
-        .pallet-btn { padding: 8px; text-align: left; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%; }
+        .pallet-btn { padding: 10px; text-align: left; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; width: 100%; border: 1px solid #ccc; background: #fff;}
         .pallet-btn strong { font-size: 13px; }
         .pallet-btn small { font-size: 10px; color: #666; }
 
-        .action-area { display: flex; gap: 8px; margin-top: 5px; }
-        .action-btn { flex: 1; padding: 8px; font-weight: bold; font-size: 12px; }
+        .action-area { display: flex; gap: 8px; margin-top: 10px; }
+        .action-btn { flex: 1; padding: 10px; font-weight: bold; font-size: 12px; }
         .btn-undo { background: #fff0f0; border-color: #ffcccc; color: #c0392b; }
         .btn-clear { background: #fff3cd; border-color: #ffeeba; color: #856404; }
 
@@ -79,9 +85,7 @@
             position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.3);
             transition: width 0.3s, height 0.3s;
         }
-        .bed-header {
-            position: absolute; top: -50px; left: 0; width: 100%; text-align: center; pointer-events: none; line-height: 1.4; white-space: nowrap;
-        }
+        .bed-header { position: absolute; top: -50px; left: 0; width: 100%; text-align: center; pointer-events: none; line-height: 1.4; white-space: nowrap; }
         .header-label { font-size: 11px; color: #666; font-weight: bold; display: block; }
         .header-name { font-size: 15px; color: #2c3e50; font-weight: bold; display: block; }
 
@@ -98,92 +102,115 @@
         .pallet.preview { opacity: 0.6; border: 2px dashed #333; background-color: rgba(100, 100, 100, 0.5) !important; color: #fff; z-index: 20; pointer-events: none; }
 
         /* =========================================
-           スマホ完全対応 (レイアウト強制書き換え)
+           スマホ完全対応 (PCレイアウトを崩さずにCSSで並び替え)
            ========================================= */
         @media screen and (max-width: 768px) {
             body {
-                flex-direction: column; /* 縦並びに変更 */
-                overflow: hidden; /* ボディ自体のスクロールは禁止 */
+                flex-direction: column; /* 縦積み */
             }
 
-            /* 1. 上段：荷台エリア (高さ45%固定) */
-            #center-col {
-                height: 45%; 
-                width: 100%;
-                flex: none; /* 伸縮させない */
-                padding: 50px 10px 10px 10px; /* ヘッダー分確保 */
-                border-bottom: 1px solid #aaa;
-                box-sizing: border-box;
-            }
-
-            /* 2. 中段：タブメニュー (高さ50px固定) */
+            /* --- タブメニュー (最上部固定) --- */
             #mobile-tabs {
                 display: flex;
                 height: 50px;
                 width: 100%;
-                flex: none;
-                background: #eee;
+                flex: none; 
+                background: #f8f9fa;
                 border-bottom: 1px solid #ccc;
-                z-index: 100;
+                z-index: 200;
+                order: 1; /* 一番上 */
             }
             .tab-btn {
                 flex: 1;
                 border: none;
-                background: #e0e4e8;
-                color: #777;
+                background: transparent;
+                color: #888;
                 font-weight: bold;
                 font-size: 14px;
                 border-bottom: 3px solid transparent;
+                border-right: 1px solid #ddd;
             }
+            .tab-btn:last-child { border-right: none; }
             .tab-btn.active {
                 background: #fff;
                 color: #2c3e50;
                 border-bottom: 3px solid #2c3e50;
             }
 
-            /* 3. 下段：操作パネル (残り全部) */
+            /* --- 描画エリア (Center Col) --- */
+            #center-col {
+                order: 2; /* タブの下 */
+                height: 40%;
+                width: 100%;
+                flex: none; 
+                padding: 40px 10px 10px 10px;
+                border-bottom: 1px solid #aaa;
+                z-index: 2;
+                background: #cbd3da;
+                display: none; /* 初期は非表示(トラック設定タブのため) */
+            }
+
+            /* --- 操作パネル (Left/Right Cols) --- */
             #left-col, #right-col {
-                display: none; /* デフォルト非表示 */
+                order: 3; /* 一番下 */
                 width: 100% !important;
-                min-width: 0 !important;
                 flex: 1; /* 残りの高さを埋める */
-                overflow-y: auto; /* ここだけスクロールさせる */
                 padding: 15px;
-                box-sizing: border-box;
+                overflow-y: auto; 
+                -webkit-overflow-scrolling: touch; 
+                display: none; /* JSで制御 */
                 border: none;
-                background: #fff;
             }
 
-            /* activeクラスがついたら表示 */
-            #left-col.active, #right-col.active {
-                display: flex;
-                flex-direction: column;
+            /* 状態別の表示制御 */
+            
+            /* モード1: 荷台設定 (初期) */
+            body.tab-truck-active #left-col {
+                display: flex; /* リストを表示 */
+            }
+            body.tab-truck-active #center-col {
+                display: none; /* プレビューなし */
+            }
+            body.tab-truck-active #right-col {
+                display: none;
             }
 
-            /* PC用スタイルの上書きリセット */
+            /* モード2: パレット配置 */
+            body.tab-pallet-active #center-col {
+                display: flex; /* プレビューあり */
+            }
+            body.tab-pallet-active #right-col {
+                display: flex; /* パレットボタン表示 */
+            }
+            body.tab-pallet-active #left-col {
+                display: none;
+            }
+
             .mobile-only { display: block; }
         }
     </style>
 </head>
-<body>
+<body class="tab-truck-active"> 
 
     <div id="mobile-tabs">
-        <button class="tab-btn" id="tab-truck" onclick="switchTab('truck')">🚛 荷台設定</button>
-        <button class="tab-btn active" id="tab-pallet" onclick="switchTab('pallet')">📦 パレット配置</button>
+        <button class="tab-btn active" id="tab-truck">1. 荷台設定</button>
+        <button class="tab-btn" id="tab-pallet">2. パレット配置</button>
     </div>
 
     <div id="left-col">
-        <h2>1. 荷台設定</h2>
+        <h2>使用する荷台を選択</h2>
         <span class="column-header" style="margin-top:0;">定型サイズ</span>
         <div id="truck-buttons"></div>
+        
         <span class="column-header">カスタム (mm)</span>
         <div class="custom-area">
             <div class="input-group"><label style="flex:1;">長さ(縦)</label><input type="number" id="custom-truck-l" value="8000" step="100"></div>
             <div class="input-group"><label style="flex:1;">車幅(横)</label><input type="number" id="custom-truck-w" value="2300" step="10"></div>
-            <button class="btn-apply" onclick="setCustomTruck()">適用＆リセット</button>
+            <button class="btn-apply" onclick="setCustomTruck()">適用して次へ</button>
         </div>
-        <div style="margin-top:15px; padding:10px; background:#fafafa; border-radius:5px; text-align:center; font-size:12px; color:#666;" class="mobile-only">
-            設定後、上のタブで<br>「パレット配置」へ移動してください
+
+        <div class="mobile-only" style="margin-top:20px; text-align:center; color:#888; font-size:12px; background:#f0f0f0; padding:10px; border-radius:5px;">
+            荷台を決めたら、上のタブで<br>「2. パレット配置」へ移動してください
         </div>
         <div style="height:50px;"></div>
     </div>
@@ -192,7 +219,8 @@
         <div id="truck-bed" style="display:none;"></div>
     </div>
 
-    <div id="right-col" class="active"> <h2>2. パレット配置</h2>
+    <div id="right-col">
+        <h2>パレットを追加</h2>
         <span class="column-header" style="margin-top:0;">定型パレット</span>
         <div id="pallet-buttons"></div>
         
@@ -214,11 +242,11 @@
             <div class="breakdown" id="breakdown-list">(内訳)</div>
             <div id="error-msg" class="error-msg"></div>
         </div>
-        <div style="height:50px;" class="mobile-only"></div>
+        <div style="height:50px;"></div>
     </div>
 
 <script>
-    // --- データ定義 ---
+    // --- データ ---
     const TRUCKS = [
         { name: "2t 標準",    L: 3100, W: 1780 },
         { name: "2t ワイドL", L: 4310, W: 2095 },
@@ -239,6 +267,7 @@
     let state = { currentTruck: null, history: [], truckIndex: -1 };
 
     const dom = {
+        body: document.body,
         centerCol: document.getElementById('center-col'),
         truckBed: document.getElementById('truck-bed'),
         truckBtns: document.getElementById('truck-buttons'),
@@ -262,6 +291,19 @@
         createButtons();
         setupCustomEvents();
         window.addEventListener('resize', onResize);
+        
+        // スマホ用タブイベント
+        dom.tabTruck.addEventListener('click', () => switchTab('truck'));
+        dom.tabPallet.addEventListener('click', () => switchTab('pallet'));
+        
+        // PC/スマホ初期判定
+        if(isMobile()) {
+            switchTab('truck');
+        } else {
+            // PCならタブクラスの影響を消す
+            dom.body.classList.remove('tab-truck-active');
+            dom.body.classList.remove('tab-pallet-active');
+        }
     }
 
     function isMobile() {
@@ -274,23 +316,31 @@
             updateTruckView();
             recalculateAndRender();
         }
+        if(!isMobile()) {
+            dom.body.classList.remove('tab-truck-active');
+            dom.body.classList.remove('tab-pallet-active');
+        }
     }
 
-    // タブ切り替え（スマホ用）
-    window.switchTab = function(target) {
+    // タブ切り替え
+    function switchTab(target) {
         if (target === 'truck') {
-            dom.leftCol.classList.add('active');
-            dom.rightCol.classList.remove('active');
             dom.tabTruck.classList.add('active');
             dom.tabPallet.classList.remove('active');
+            dom.body.classList.add('tab-truck-active');
+            dom.body.classList.remove('tab-pallet-active');
         } else {
-            dom.leftCol.classList.remove('active');
-            dom.rightCol.classList.add('active');
             dom.tabTruck.classList.remove('active');
             dom.tabPallet.classList.add('active');
+            dom.body.classList.remove('tab-truck-active');
+            dom.body.classList.add('tab-pallet-active');
+            
+            // プレビュー画面が出るのでリサイズ計算
+            setTimeout(() => {
+                onResize();
+            }, 50);
         }
-        setTimeout(onResize, 50); // レイアウト変更後の再計算
-    };
+    }
 
     function createButtons() {
         TRUCKS.forEach((t, i) => {
@@ -307,6 +357,7 @@
             btn.innerHTML = `<strong>${p.name}</strong><small>${p.w}×${p.d}</small>`;
             
             btn.onclick = () => addPalletRequest(p);
+            // スマホ以外のみプレビュー
             btn.onmouseenter = () => { if(!isMobile()) showPreview(p); };
             btn.onmouseleave = () => hidePreview();
 
@@ -338,16 +389,13 @@
     function calculateAutoScale() {
         if (!state.currentTruck) return;
         
-        // PCとスマホで余白計算を変える
-        // PC: header(60)+padding(20)=80, widthPadding=40
-        // Mobile: header(50)+padding(10)=60, widthPadding=20
+        // PCとスマホで余白計算
         const paddingH = isMobile() ? 60 : 80; 
         const paddingW = isMobile() ? 20 : 40;
 
         const containerH = dom.centerCol.clientHeight - paddingH;
         const containerW = dom.centerCol.clientWidth - paddingW;
         
-        // 分母が0にならないようガード
         if(containerH <= 0 || containerW <= 0) return;
 
         const scaleH = containerH / state.currentTruck.L;
@@ -363,8 +411,7 @@
         Array.from(dom.truckBtns.children).forEach(b => b.classList.remove('active'));
         if(btnElem) btnElem.classList.add('active');
 
-        // スマホなら自動でパレットタブへ誘導
-        if(isMobile()) switchTab('pallet');
+        // スマホの場合、自動遷移はしない(要望により)
         
         setTimeout(() => {
             calculateAutoScale();
@@ -383,7 +430,7 @@
         clearAllLogic();
         Array.from(dom.truckBtns.children).forEach(b => b.classList.remove('active'));
         
-        if(isMobile()) switchTab('pallet');
+        // 自動遷移なし
 
         setTimeout(() => {
             calculateAutoScale();
