@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>パレット積載シミュレーター (v3.9 はみ出し完全修正版)</title>
+    <title>パレット積載シミュレーター (v4.0 スマホ表示最適化版)</title>
     <style>
         /* --- 全体設定 --- */
-        * { box-sizing: border-box; } /* 基本は枠線を含める */
-        
+        * { box-sizing: border-box; }
         body { 
             font-family: "Helvetica Neue", Arial, sans-serif; 
             height: 100vh; width: 100vw; margin: 0; background: #e0e4e8; 
@@ -79,7 +78,7 @@
         .breakdown { margin-top: 8px; padding-top: 8px; border-top: 1px solid #dae0e5; font-size: 11px; color: #444; line-height: 1.4; }
         .error-msg { color: #e74c3c; font-weight: bold; font-size: 11px; margin-top: 6px; text-align: center; min-height:1em;}
 
-        /* --- 荷台描画 (ここを修正) --- */
+        /* --- 荷台描画 --- */
         #truck-bed {
             background-color: #f4f4f4; 
             border: 2px solid #333; 
@@ -87,27 +86,30 @@
             position: relative; 
             box-shadow: 0 15px 40px rgba(0,0,0,0.3);
             transition: width 0.3s, height 0.3s;
-            
-            /* 【重要】ここが修正ポイント */
-            /* 枠線をサイズ計算に含めず外側に描画することで、内寸を確保する */
-            box-sizing: content-box; 
+            box-sizing: content-box; /* 枠線を外に出して内寸確保 */
         }
         
         .bed-header { position: absolute; top: -50px; left: 0; width: 100%; text-align: center; pointer-events: none; line-height: 1.4; white-space: nowrap; }
         .header-label { font-size: 11px; color: #666; font-weight: bold; display: block; }
         .header-name { font-size: 15px; color: #2c3e50; font-weight: bold; display: block; }
 
+        /* パレットスタイル */
         .pallet {
-            position: absolute; box-sizing: border-box; display: flex; justify-content: center; align-items: center;
-            font-size: 12px; color: #fff; font-weight: bold; border: 1px solid rgba(0,0,0,0.2);
+            position: absolute; box-sizing: border-box; display: flex; 
+            justify-content: center; align-items: center; flex-direction: column; /* 縦並び */
+            color: #fff; font-weight: bold; border: 1px solid rgba(0,0,0,0.2);
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); z-index: 10; overflow: hidden;
-            white-space: pre-wrap; line-height: 1.1; text-align: center;
+            white-space: nowrap;
         }
         .pallet.type-11 { background-color: #2980b9; } 
         .pallet.type-14 { background-color: #c0392b; }
         .pallet.type-9  { background-color: #f39c12; color: #333; }
         .pallet.type-custom { background-color: #27ae60; } 
         .pallet.preview { opacity: 0.6; border: 2px dashed #333; background-color: rgba(100, 100, 100, 0.5) !important; color: #fff; z-index: 20; pointer-events: none; }
+
+        /* パレット内のテキスト制御用クラス */
+        .p-index { font-size: 12px; display: block; }
+        .p-size { font-size: 10px; opacity: 0.8; display: block; margin-top: 1px; }
 
         /* =========================================
            スマホ完全対応
@@ -180,6 +182,10 @@
             body.tab-pallet-active #left-col { display: none; }
 
             .mobile-only { display: block; }
+
+            /* ★スマホでのパレット内表示調整★ */
+            .p-size { display: none; } /* サイズ表記を隠す */
+            .p-index { font-size: 14px; } /* 数字を少し大きく */
         }
     </style>
 </head>
@@ -387,7 +393,6 @@
         const scaleH = containerH / state.currentTruck.L;
         const scaleW = containerW / state.currentTruck.W;
         
-        // 90%に縮小して安全マージン確保
         currentScale = Math.min(scaleH, scaleW) * 0.90;
     }
 
@@ -561,7 +566,10 @@
             el.style.top  = (item.y * currentScale) + 'px';
             el.style.width = (item.w * currentScale) + 'px';
             el.style.height = (item.d * currentScale) + 'px';
-            el.innerHTML = `<span style="display:block; text-align:center;">${item.index}<br><span style="font-size:10px; opacity:0.8;">${item.w}x${item.d}</span></span>`;
+            
+            // 文字表示部分: クラスを使ってスマホ/PCで表示を切り替え
+            el.innerHTML = `<span class="p-index">${item.index}</span><span class="p-size">${item.w}x${item.d}</span>`;
+            
             dom.truckBed.appendChild(el);
         });
 
@@ -594,3 +602,4 @@
 
 </body>
 </html>
+
