@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>パレット積載シミュレーター (v3.2 スマホ完全修正版)</title>
+    <style>
+        /* --- 基本設定 (PCファースト) --- */
+        body { 
+            font-family: "Helvetica Neue", Arial, sans-serif; 
+            height: 100vh; width: 100vw; margin: 0; background: #e0e4e8; 
+            overflow: hidden; /* 画面全体スクロール禁止 */
+            display: flex;
+        }
+        
+        h2 { margin: 0 0 5px 0; font-size: 15px; color: #2c3e50; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .column-header { font-size: 11px; font-weight: bold; color: #7f8c8d; text-transform: uppercase; margin-bottom: 5px; display: block; margin-top: 10px;}
+        
+        button { cursor: pointer; border: 1px solid #ccc; background: #f8f9fa; border-radius: 4px; font-size: 13px; transition: all 0.1s; }
+        button:hover { background: #e9ecef; }
+        button:active { transform: translateY(1px); }
+
+        input[type="number"] { width: 55px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size: 12px; }
+
+        /* --- PCレイアウト (3カラム) --- */
+        #left-col {
+            width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #ccc; padding: 15px;
+            display: flex; flex-direction: column; gap: 5px; z-index: 10; overflow-y: auto;
+        }
+
+        #center-col {
+            flex: 1;
+            background: #cbd3da;
+            position: relative;
+            overflow: hidden; 
+            display: flex; justify-content: center; align-items: center;
+            padding: 60px 20px 20px 20px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        #right-col {
+            width: 260px; min-width: 260px; background: #fff; border-left: 1px solid #ccc; padding: 15px;
+            display: flex; flex-direction: column; gap: 8px; z-index: 10; overflow-y: auto;
+        }
+
+        /* --- モバイル用タブ (PCでは非表示) --- */
+        #mobile-tabs { display: none; }
+        .mobile-only { display: none; }
+
+        /* --- UIパーツ --- */
+        .truck-btn { padding: 8px; text-align: left; display: flex; flex-direction: column; gap: 2px; width: 100%; margin-bottom: 3px; }
+        .truck-btn strong { color: #333; font-size: 13px; }
+        .truck-btn small { color: #666; font-size: 10px; }
+        .truck-btn.active { background: #2c3e50; border-color: #1a252f; }
+        .truck-btn.active strong { color: #fff; }
+        .truck-btn.active small { color: #bbb; }
+
+        .custom-area { background: #f1f8ff; padding: 8px; border-radius: 4px; border: 1px dashed #aaddff; }
+        .input-group { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 12px; }
+        .btn-apply { width: 100%; background: #3498db; color: white; border: none; padding: 6px; margin-top: 4px; font-size: 12px; }
+
+        .pallet-btn { padding: 8px; text-align: left; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; width: 100%; }
+        .pallet-btn strong { font-size: 13px; }
+        .pallet-btn small { font-size: 10px; color: #666; }
+
+        .action-area { display: flex; gap: 8px; margin-top: 5px; }
+        .action-btn { flex: 1; padding: 8px; font-weight: bold; font-size: 12px; }
+        .btn-undo { background: #fff0f0; border-color: #ffcccc; color: #c0392b; }
+        .btn-clear { background: #fff3cd; border-color: #ffeeba; color: #856404; }
+
+        #status-box { margin-top: auto; padding: 12px; background: #f1f8ff; border: 1px solid #cce5ff; border-radius: 6px; font-size: 12px; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .breakdown { margin-top: 8px; padding-top: 8px; border-top: 1px solid #dae0e5; font-size: 11px; color: #444; line-height: 1.4; }
+        .error-msg { color: #e74c3c; font-weight: bold; font-size: 11px; margin-top: 6px; text-align: center; min-height:1em;}
+
+        /* --- 荷台描画 --- */
+        #truck-bed {
+            background-color: #f4f4f4; border: 2px solid #333; border-top: 10px solid #2c3e50;
+            position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            transition: width 0.3s, height 0.3s;
+        }
+        .bed-header {
+            position: absolute; top: -50px; left: 0; width: 100%; text-align: center; pointer-events: none; line-height: 1.4; white-space: nowrap;
+        }
+        .header-label { font-size: 11px; color: #666; font-weight: bold; display: block; }
+        .header-name { font-size: 15px; color: #2c3e50; font-weight: bold; display: block; }
+
+        .pallet {
+            position: absolute; box-sizing: border-box; display: flex; justify-content: center; align-items: center;
+            font-size: 12px; color: #fff; font-weight: bold; border: 1px solid rgba(0,0,0,0.2);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); z-index: 10; overflow: hidden;
+            white-space: pre-wrap; line-height: 1.1; text-align: center;
+        }
+        .pallet.type-11 { background-color: #2980b9; } 
+        .pallet.type-14 { background-color: #c0392b; }
+        .pallet.type-9  { background-color: #f39c12; color: #333; }
+        .pallet.type-custom { background-color: #27ae60; } 
+        .pallet.preview { opacity: 0.6; border: 2px dashed #333; background-color: rgba(100, 100, 100, 0.5) !important; color: #fff; z-index: 20; pointer-events: none; }
+
+        /* =========================================
+           スマホ完全対応 (レイアウト強制書き換え)
+           ========================================= */
+        @media screen and (max-width: 768px) {
+            body {
+                flex-direction: column; /* 縦並びに変更 */
+                overflow: hidden; /* ボディ自体のスクロールは禁止 */
+            }
+
+            /* 1. 上段：荷台エリア (高さ45%固定) */
+            #center-col {
+                height: 45%; 
+                width: 100%;
+                flex: none; /* 伸縮させない */
+                padding: 50px 10px 10px 10px; /* ヘッダー分確保 */
+                border-bottom: 1px solid #aaa;
+                box-sizing: border-box;
+            }
+
+            /* 2. 中段：タブメニュー (高さ50px固定) */
+            #mobile-tabs {
+                display: flex;
+                height: 50px;
+                width: 100%;
+                flex: none;
+                background: #eee;
+                border-bottom: 1px solid #ccc;
+                z-index: 100;
+            }
+            .tab-btn {
+                flex: 1;
+                border: none;
+                background: #e0e4e8;
+                color: #777;
+                font-weight: bold;
+                font-size: 14px;
+                border-bottom: 3px solid transparent;
+            }
+            .tab-btn.active {
+                background: #fff;
+                color: #2c3e50;
+                border-bottom: 3px solid #2c3e50;
+            }
+
+            /* 3. 下段：操作パネル (残り全部) */
+            #left-col, #right-col {
+                display: none; /* デフォルト非表示 */
+                width: 100% !important;
+                min-width: 0 !important;
+                flex: 1; /* 残りの高さを埋める */
+                overflow-y: auto; /* ここだけスクロールさせる */
+                padding: 15px;
+                box-sizing: border-box;
+                border: none;
+                background: #fff;
+            }
+
+            /* activeクラスがついたら表示 */
+            #left-col.active, #right-col.active {
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* PC用スタイルの上書きリセット */
+            .mobile-only { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="mobile-tabs">
+        <button class="tab-btn" id="tab-truck" onclick="switchTab('truck')">🚛 荷台設定</button>
+        <button class="tab-btn active" id="tab-pallet" onclick="switchTab('pallet')">📦 パレット配置</button>
+    </div>
+
+    <div id="left-col">
+        <h2>1. 荷台設定</h2>
+        <span class="column-header" style="margin-top:0;">定型サイズ</span>
+        <div id="truck-buttons"></div>
+        <span class="column-header">カスタム (mm)</span>
+        <div class="custom-area">
+            <div class="input-group"><label style="flex:1;">長さ(縦)</label><input type="number" id="custom-truck-l" value="8000" step="100"></div>
+            <div class="input-group"><label style="flex:1;">車幅(横)</label><input type="number" id="custom-truck-w" value="2300" step="10"></div>
+            <button class="btn-apply" onclick="setCustomTruck()">適用＆リセット</button>
+        </div>
+        <div style="margin-top:15px; padding:10px; background:#fafafa; border-radius:5px; text-align:center; font-size:12px; color:#666;" class="mobile-only">
+            設定後、上のタブで<br>「パレット配置」へ移動してください
+        </div>
+        <div style="height:50px;"></div>
+    </div>
+
+    <div id="center-col">
+        <div id="truck-bed" style="display:none;"></div>
+    </div>
+
+    <div id="right-col" class="active"> <h2>2. パレット配置</h2>
+        <span class="column-header" style="margin-top:0;">定型パレット</span>
+        <div id="pallet-buttons"></div>
+        
+        <span class="column-header">カスタム (mm)</span>
+        <div class="custom-area">
+            <div class="input-group"><label style="flex:1;">幅(横)</label><input type="number" id="custom-pallet-w" value="1100" step="10"></div>
+            <div class="input-group"><label style="flex:1;">奥行(縦)</label><input type="number" id="custom-pallet-d" value="1100" step="10"></div>
+            <button class="btn-apply" id="btn-add-custom" style="background:#27ae60;">＋ 追加</button>
+        </div>
+
+        <div class="action-area">
+            <button class="action-btn btn-undo" onclick="undoLastPallet()">↩ 戻る</button>
+            <button class="action-btn btn-clear" onclick="clearAll()">✖ クリア</button>
+        </div>
+
+        <div id="status-box">
+            <div class="stat-row"><span>合計枚数:</span><strong id="count" style="font-size:1.2em;">0 枚</strong></div>
+            <div class="stat-row"><span>残り長さ (L/R):</span><span id="remain-len">- / -</span></div>
+            <div class="breakdown" id="breakdown-list">(内訳)</div>
+            <div id="error-msg" class="error-msg"></div>
+        </div>
+        <div style="height:50px;" class="mobile-only"></div>
+    </div>
+
+<script>
+    // --- データ定義 ---
+    const TRUCKS = [
+        { name: "2t 標準",    L: 3100, W: 1780 },
+        { name: "2t ワイドL", L: 4310, W: 2095 },
+        { name: "4t 標準",    L: 5935, W: 2185 },
+        { name: "4t ワイド",  L: 5935, W: 2365 },
+        { name: "10t ワイド", L: 9640, W: 2410 }
+    ];
+
+    const PALLETS = [
+        { id: '11',  name: "11型 正方形", w: 1100, d: 1100, typeClass: 'type-11' },
+        { id: '14v', name: "14型 縦",     w: 1100, d: 1400, typeClass: 'type-14' },
+        { id: '14h', name: "14型 横",     w: 1400, d: 1100, typeClass: 'type-14' },
+        { id: '9v',  name: "9型 縦",      w: 900,  d: 1100, typeClass: 'type-9' },
+        { id: '9h',  name: "9型 横",      w: 1100, d: 900,  typeClass: 'type-9' }
+    ];
+
+    let currentScale = 0.085; 
+    let state = { currentTruck: null, history: [], truckIndex: -1 };
+
+    const dom = {
+        centerCol: document.getElementById('center-col'),
+        truckBed: document.getElementById('truck-bed'),
+        truckBtns: document.getElementById('truck-buttons'),
+        palletBtns: document.getElementById('pallet-buttons'),
+        count: document.getElementById('count'),
+        remainLen: document.getElementById('remain-len'),
+        breakdown: document.getElementById('breakdown-list'),
+        errorMsg: document.getElementById('error-msg'),
+        customTruckL: document.getElementById('custom-truck-l'),
+        customTruckW: document.getElementById('custom-truck-w'),
+        customPalletW: document.getElementById('custom-pallet-w'),
+        customPalletD: document.getElementById('custom-pallet-d'),
+        btnAddCustom: document.getElementById('btn-add-custom'),
+        leftCol: document.getElementById('left-col'),
+        rightCol: document.getElementById('right-col'),
+        tabTruck: document.getElementById('tab-truck'),
+        tabPallet: document.getElementById('tab-pallet')
+    };
+
+    function init() {
+        createButtons();
+        setupCustomEvents();
+        window.addEventListener('resize', onResize);
+    }
+
+    function isMobile() {
+        return window.innerWidth <= 768;
+    }
+
+    function onResize() {
+        if(state.currentTruck) {
+            calculateAutoScale();
+            updateTruckView();
+            recalculateAndRender();
+        }
+    }
+
+    // タブ切り替え（スマホ用）
+    window.switchTab = function(target) {
+        if (target === 'truck') {
+            dom.leftCol.classList.add('active');
+            dom.rightCol.classList.remove('active');
+            dom.tabTruck.classList.add('active');
+            dom.tabPallet.classList.remove('active');
+        } else {
+            dom.leftCol.classList.remove('active');
+            dom.rightCol.classList.add('active');
+            dom.tabTruck.classList.remove('active');
+            dom.tabPallet.classList.add('active');
+        }
+        setTimeout(onResize, 50); // レイアウト変更後の再計算
+    };
+
+    function createButtons() {
+        TRUCKS.forEach((t, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'truck-btn';
+            btn.innerHTML = `<strong>${t.name}</strong><small>${t.L}×${t.W}</small>`;
+            btn.onclick = () => selectTruck(i, btn);
+            dom.truckBtns.appendChild(btn);
+        });
+
+        PALLETS.forEach(p => {
+            const btn = document.createElement('button');
+            btn.className = 'pallet-btn';
+            btn.innerHTML = `<strong>${p.name}</strong><small>${p.w}×${p.d}</small>`;
+            
+            btn.onclick = () => addPalletRequest(p);
+            btn.onmouseenter = () => { if(!isMobile()) showPreview(p); };
+            btn.onmouseleave = () => hidePreview();
+
+            dom.palletBtns.appendChild(btn);
+        });
+    }
+
+    function setupCustomEvents() {
+        dom.btnAddCustom.onclick = () => {
+            const w = parseInt(dom.customPalletW.value) || 0;
+            const d = parseInt(dom.customPalletD.value) || 0;
+            if (w <= 0 || d <= 0) return;
+            const p = { id: 'custom', name: `カスタム(${w}x${d})`, w: w, d: d, typeClass: 'type-custom' };
+            addPalletRequest(p);
+            if(!isMobile()) showPreview(p);
+        };
+        dom.btnAddCustom.onmouseenter = () => {
+            if(isMobile()) return; 
+            const w = parseInt(dom.customPalletW.value) || 0;
+            const d = parseInt(dom.customPalletD.value) || 0;
+            if (w > 0 && d > 0) {
+                const p = { id:'custom', name:'Custom', w:w, d:d, typeClass:'type-custom' };
+                showPreview(p);
+            }
+        };
+        dom.btnAddCustom.onmouseleave = () => hidePreview();
+    }
+
+    function calculateAutoScale() {
+        if (!state.currentTruck) return;
+        
+        // PCとスマホで余白計算を変える
+        // PC: header(60)+padding(20)=80, widthPadding=40
+        // Mobile: header(50)+padding(10)=60, widthPadding=20
+        const paddingH = isMobile() ? 60 : 80; 
+        const paddingW = isMobile() ? 20 : 40;
+
+        const containerH = dom.centerCol.clientHeight - paddingH;
+        const containerW = dom.centerCol.clientWidth - paddingW;
+        
+        // 分母が0にならないようガード
+        if(containerH <= 0 || containerW <= 0) return;
+
+        const scaleH = containerH / state.currentTruck.L;
+        const scaleW = containerW / state.currentTruck.W;
+        currentScale = Math.min(scaleH, scaleW);
+    }
+
+    function selectTruck(index, btnElem) {
+        state.currentTruck = TRUCKS[index];
+        state.truckIndex = index;
+        
+        clearAllLogic(); 
+        Array.from(dom.truckBtns.children).forEach(b => b.classList.remove('active'));
+        if(btnElem) btnElem.classList.add('active');
+
+        // スマホなら自動でパレットタブへ誘導
+        if(isMobile()) switchTab('pallet');
+        
+        setTimeout(() => {
+            calculateAutoScale();
+            updateTruckView();
+        }, 50);
+    }
+
+    function setCustomTruck() {
+        const L = parseInt(dom.customTruckL.value);
+        const W = parseInt(dom.customTruckW.value);
+        if (!L || !W || L<=0 || W<=0) { showError("サイズNG"); return; }
+
+        state.currentTruck = { name: "カスタム荷台", L: L, W: W };
+        state.truckIndex = -1;
+        
+        clearAllLogic();
+        Array.from(dom.truckBtns.children).forEach(b => b.classList.remove('active'));
+        
+        if(isMobile()) switchTab('pallet');
+
+        setTimeout(() => {
+            calculateAutoScale();
+            updateTruckView();
+        }, 50);
+    }
+
+    function addPalletRequest(palletProto) {
+        if (!state.currentTruck) { 
+            if(isMobile()) {
+                showError("◀ 荷台タブで荷台を選んでください");
+                switchTab('truck');
+            } else {
+                showError("◀ 荷台を選択してください");
+            }
+            return; 
+        }
+        const newHistory = [...state.history, palletProto];
+        const result = calculateLayout(state.currentTruck, newHistory);
+
+        if (result.success) {
+            state.history = newHistory;
+            renderResult(result);
+            showError("");
+        } else {
+            showError("長さオーバーです");
+        }
+    }
+
+    function undoLastPallet() {
+        if (state.history.length === 0) return;
+        state.history.pop();
+        recalculateAndRender();
+        showError("");
+    }
+
+    function clearAll() {
+        if (!state.currentTruck) return;
+        clearAllLogic();
+    }
+
+    function clearAllLogic() {
+        state.history = [];
+        recalculateAndRender();
+        showError("");
+    }
+
+    function calculateLayout(truck, palletList) {
+        let placedItems = [];
+        let leftY = 0;
+        let rightY = 0;
+
+        for (let i = 0; i < palletList.length; i++) {
+            const p = palletList[i];
+            let x, y;
+
+            if (p.w * 2 <= truck.W) {
+                if (leftY <= rightY) {
+                    x = 0; y = leftY;
+                    if (y + p.d > truck.L) return { success: false };
+                    leftY += p.d;
+                } else {
+                    x = truck.W - p.w; y = rightY;
+                    if (y + p.d > truck.L) return { success: false };
+                    rightY += p.d;
+                }
+            } else {
+                let startY = Math.max(leftY, rightY);
+                y = startY;
+                x = (truck.W - p.w) / 2;
+                if (y + p.d > truck.L) return { success: false };
+                leftY = y + p.d;
+                rightY = y + p.d;
+            }
+
+            placedItems.push({ 
+                x: x, y: y, w: p.w, d: p.d, 
+                name: p.name, typeClass: p.typeClass, index: i + 1 
+            });
+        }
+        return { success: true, items: placedItems, usedLength: Math.max(leftY, rightY), leftY: leftY, rightY: rightY };
+    }
+
+    function showPreview(pallet) {
+        if (!state.currentTruck) return;
+        const previewHistory = [...state.history, pallet];
+        const result = calculateLayout(state.currentTruck, previewHistory);
+        hidePreview();
+
+        if (result.success) {
+            const item = result.items[result.items.length - 1];
+            const el = document.createElement('div');
+            el.id = 'preview-ghost';
+            el.className = `pallet preview`;
+            el.style.left = (item.x * currentScale) + 'px';
+            el.style.top  = (item.y * currentScale) + 'px';
+            el.style.width = (item.w * currentScale) + 'px';
+            el.style.height = (item.d * currentScale) + 'px';
+            el.innerHTML = "NEXT";
+            dom.truckBed.appendChild(el);
+        }
+    }
+
+    function hidePreview() {
+        const ghost = document.getElementById('preview-ghost');
+        if (ghost) ghost.remove();
+    }
+
+    function recalculateAndRender() {
+        hidePreview();
+        if (!state.currentTruck) {
+             dom.truckBed.innerHTML = '';
+             dom.count.textContent = '0 枚';
+             dom.remainLen.textContent = '- / -';
+             dom.breakdown.innerHTML = '(内訳)';
+             return;
+        }
+        const result = calculateLayout(state.currentTruck, state.history);
+        renderResult(result);
+    }
+
+    function updateTruckView() {
+        if(!state.currentTruck) return;
+        dom.truckBed.style.display = 'block';
+        dom.truckBed.style.width = (state.currentTruck.W * currentScale) + 'px';
+        dom.truckBed.style.height = (state.currentTruck.L * currentScale) + 'px';
+    }
+
+    function renderResult(result) {
+        dom.truckBed.innerHTML = '';
+        
+        if(state.currentTruck) {
+            const header = document.createElement('div');
+            header.className = 'bed-header';
+            header.innerHTML = `<span class="header-label">運転席側 (奥)</span><span class="header-name">${state.currentTruck.name} (${state.currentTruck.L}×${state.currentTruck.W})</span>`;
+            dom.truckBed.appendChild(header);
+        }
+
+        const items = result.items || [];
+        items.forEach(item => {
+            const el = document.createElement('div');
+            el.className = `pallet ${item.typeClass}`;
+            el.style.left = (item.x * currentScale) + 'px';
+            el.style.top  = (item.y * currentScale) + 'px';
+            el.style.width = (item.w * currentScale) + 'px';
+            el.style.height = (item.d * currentScale) + 'px';
+            el.innerHTML = `<span style="display:block; text-align:center;">${item.index}<br><span style="font-size:10px; opacity:0.8;">${item.w}x${item.d}</span></span>`;
+            dom.truckBed.appendChild(el);
+        });
+
+        dom.count.textContent = items.length + " 枚";
+        if(state.currentTruck) {
+            const remL = Math.max(0, state.currentTruck.L - (result.leftY || 0));
+            const remR = Math.max(0, state.currentTruck.L - (result.rightY || 0));
+            dom.remainLen.textContent = `L:${remL} / R:${remR}`;
+        }
+
+        if (items.length === 0) {
+            dom.breakdown.innerHTML = "パレットなし";
+        } else {
+            const counts = {};
+            items.forEach(item => { const n = item.name; counts[n] = (counts[n] || 0) + 1; });
+            let html = [];
+            for (const [name, num] of Object.entries(counts)) {
+                html.push(`<div>${name}: <strong>${num}</strong></div>`);
+            }
+            dom.breakdown.innerHTML = html.join("");
+        }
+    }
+
+    function showError(msg) {
+        dom.errorMsg.textContent = msg;
+    }
+
+    init();
+</script>
+
+</body>
+</html>
