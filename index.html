@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>パレット積載シミュレーター (v5.0 重量計算対応版)</title>
+    <title>パレット積載シミュレーター (v5.1 スマホ表示修正版)</title>
     <style>
         /* --- 全体設定 --- */
         * { box-sizing: border-box; } 
         
-        body { 
+        html, body { 
+            height: 100%; width: 100%; margin: 0; padding: 0;
             font-family: "Helvetica Neue", Arial, sans-serif; 
-            height: 100vh; width: 100vw; margin: 0; background: #e0e4e8; 
+            background: #e0e4e8; 
             overflow: hidden; 
+        }
+
+        body {
             display: flex; 
             flex-direction: row; /* PCは横並び */
         }
@@ -63,11 +67,9 @@
 
         .custom-area { background: #f1f8ff; padding: 10px; border-radius: 4px; border: 1px dashed #aaddff; margin-bottom: 10px; }
         
-        /* 入力エリアの調整 */
         .input-group { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; font-size: 12px; }
         .input-group label { flex: 1; color: #555; font-weight: bold; }
         
-        /* 重量入力エリアの強調 */
         .weight-input-area {
             background: #fff3cd; 
             border: 1px solid #ffeeba; 
@@ -91,7 +93,6 @@
         .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; border-bottom: 1px solid #eef; padding-bottom: 4px;}
         .breakdown { margin-top: 8px; padding-top: 8px; border-top: 1px solid #dae0e5; font-size: 11px; color: #444; line-height: 1.4; }
         
-        /* ステータスの警告色 */
         .text-over { color: #d00; font-weight: bold; }
         .error-msg { color: #e74c3c; font-weight: bold; font-size: 11px; margin-top: 6px; text-align: center; min-height:1em;}
 
@@ -103,7 +104,7 @@
             position: relative; 
             box-shadow: 0 15px 40px rgba(0,0,0,0.3);
             transition: width 0.3s, height 0.3s;
-            box-sizing: content-box; /* 枠線を外に出して内寸確保 */
+            box-sizing: content-box; /* はみ出し防止 */
         }
         
         .bed-header { position: absolute; top: -50px; left: 0; width: 100%; text-align: center; pointer-events: none; line-height: 1.4; white-space: nowrap; }
@@ -125,57 +126,94 @@
         .pallet.type-custom { background-color: #27ae60; } 
         .pallet.preview { opacity: 0.6; border: 2px dashed #333; background-color: rgba(100, 100, 100, 0.5) !important; color: #fff; z-index: 20; pointer-events: none; }
 
-        /* パレット内のテキスト制御 */
+        /* パレット内のテキスト */
         .p-index { font-size: 12px; display: block; }
         .p-size { font-size: 10px; opacity: 0.9; display: block; }
-        .p-weight { font-size: 10px; opacity: 0.9; display: block; color: #ffeb3b; } /* 重量は黄色っぽく */
+        .p-weight { font-size: 10px; opacity: 0.9; display: block; color: #ffeb3b; }
 
         /* =========================================
-           スマホ完全対応
+           レスポンシブ対応 (画面幅が狭い時)
            ========================================= */
         @media screen and (max-width: 768px) {
-            body { flexDirection: column; }
+            body {
+                flex-direction: column !important; /* 縦積み強制 */
+            }
 
-            /* --- タブメニュー --- */
+            /* --- タブメニュー (最上部固定) --- */
             #mobile-tabs {
-                display: flex; height: 50px; width: 100%; flex: none; 
-                background: #f8f9fa; border-bottom: 1px solid #ccc; z-index: 200; order: 1;
+                display: flex !important;
+                height: 50px;
+                width: 100%;
+                flex: none; 
+                background: #f8f9fa;
+                border-bottom: 1px solid #ccc;
+                z-index: 200;
+                order: 1;
             }
             .tab-btn {
-                flex: 1; border: none; background: transparent; color: #888;
-                font-weight: bold; font-size: 14px; border-bottom: 3px solid transparent; border-right: 1px solid #ddd;
+                flex: 1;
+                border: none;
+                background: transparent;
+                color: #888;
+                font-weight: bold;
+                font-size: 14px;
+                border-bottom: 3px solid transparent;
+                border-right: 1px solid #ddd;
             }
             .tab-btn:last-child { border-right: none; }
-            .tab-btn.active { background: #fff; color: #2c3e50; border-bottom: 3px solid #2c3e50; }
+            .tab-btn.active {
+                background: #fff;
+                color: #2c3e50;
+                border-bottom: 3px solid #2c3e50;
+            }
 
-            /* --- 描画エリア --- */
+            /* --- 描画エリア (Center Col) --- */
             #center-col {
-                order: 2; height: 40%; width: 100%; flex: none; 
-                padding: 50px 10px 10px 10px; border-bottom: 1px solid #aaa;
-                z-index: 2; background: #cbd3da; display: none; 
+                order: 2; 
+                height: 40%;
+                width: 100%;
+                flex: none; 
+                padding: 50px 10px 10px 10px; 
+                border-bottom: 1px solid #aaa;
+                z-index: 2;
+                background: #cbd3da;
+                /* デフォルトは非表示、activeクラスで表示 */
+                display: none; 
             }
 
-            /* --- 操作パネル --- */
+            /* --- 操作パネル (Left/Right Cols) --- */
             #left-col, #right-col {
-                order: 3; width: 100% !important; flex: 1; padding: 15px;
-                overflow-y: auto; -webkit-overflow-scrolling: touch; display: none; border: none;
+                order: 3; 
+                width: 100% !important;
+                min-width: 0 !important;
+                flex: 1; /* 残りの高さを埋める */
+                padding: 15px;
+                overflow-y: auto; 
+                -webkit-overflow-scrolling: touch; 
+                display: none; /* デフォルト非表示 */
+                border: none;
             }
 
-            /* 状態別の表示制御 */
-            body.tab-truck-active #left-col { display: flex; }
-            body.tab-truck-active #center-col { display: none; }
-            body.tab-truck-active #right-col { display: none; }
+            /* --- 強制表示・非表示のルール (重要) --- */
+            
+            /* モード1: 荷台設定 (初期) */
+            /* 荷台設定タブがアクティブなら、Leftを表示、他を隠す */
+            body.tab-truck-active #left-col { display: flex !important; }
+            body.tab-truck-active #center-col { display: none !important; }
+            body.tab-truck-active #right-col { display: none !important; }
 
-            body.tab-pallet-active #center-col { display: flex; }
-            body.tab-pallet-active #right-col { display: flex; }
-            body.tab-pallet-active #left-col { display: none; }
+            /* モード2: パレット配置 */
+            /* パレットタブがアクティブなら、Center(プレビュー)とRight(ボタン)を表示 */
+            body.tab-pallet-active #center-col { display: flex !important; }
+            body.tab-pallet-active #right-col { display: flex !important; }
+            body.tab-pallet-active #left-col { display: none !important; }
 
-            .mobile-only { display: block; }
+            .mobile-only { display: block !important; }
 
-            /* ★スマホでのパレット内表示調整★ */
-            .p-size { display: none; }   /* サイズ非表示 */
-            .p-weight { display: none; } /* 重量非表示 */
-            .p-index { font-size: 14px; } /* 数字大きく */
+            /* スマホでのパレット内表示調整（サイズ・重量OFF） */
+            .p-size { display: none !important; }
+            .p-weight { display: none !important; }
+            .p-index { font-size: 14px !important; }
         }
     </style>
 </head>
@@ -200,8 +238,8 @@
 
         <span class="column-header">カスタム (mm)</span>
         <div class="custom-area">
-            <div class="input-group"><label>長さ(縦)</label><input type="number" id="custom-truck-l" value="8000" step="100"></div>
-            <div class="input-group"><label>車幅(横)</label><input type="number" id="custom-truck-w" value="2300" step="10"></div>
+            <div class="input-group"><label style="flex:1;">長さ(縦)</label><input type="number" id="custom-truck-l" value="8000" step="100"></div>
+            <div class="input-group"><label style="flex:1;">車幅(横)</label><input type="number" id="custom-truck-w" value="2300" step="10"></div>
             <button class="btn-apply" onclick="setCustomTruck()">適用して次へ</button>
         </div>
 
@@ -254,7 +292,7 @@
     </div>
 
 <script>
-    // --- データ (積載量 cap 追加) ---
+    // --- データ ---
     const TRUCKS = [
         { name: "2t 標準",    L: 3100, W: 1780, cap: 2000 },
         { name: "2t ワイドL", L: 4310, W: 2095, cap: 2000 },
@@ -284,18 +322,15 @@
         palletBtns: document.getElementById('pallet-buttons'),
         count: document.getElementById('count'),
         remainLen: document.getElementById('remain-len'),
-        weightDisplay: document.getElementById('weight-display'), // 重量表示
+        weightDisplay: document.getElementById('weight-display'),
         breakdown: document.getElementById('breakdown-list'),
         errorMsg: document.getElementById('error-msg'),
-        // Inputs
         customTruckL: document.getElementById('custom-truck-l'),
         customTruckW: document.getElementById('custom-truck-w'),
-        truckCapacity: document.getElementById('truck-capacity'), // 積載量入力
-        
+        truckCapacity: document.getElementById('truck-capacity'),
         customPalletW: document.getElementById('custom-pallet-w'),
         customPalletD: document.getElementById('custom-pallet-d'),
-        palletWeight: document.getElementById('pallet-weight'), // パレット重量入力
-        
+        palletWeight: document.getElementById('pallet-weight'),
         btnAddCustom: document.getElementById('btn-add-custom'),
         leftCol: document.getElementById('left-col'),
         rightCol: document.getElementById('right-col'),
@@ -311,6 +346,7 @@
         dom.tabTruck.addEventListener('click', () => switchTab('truck'));
         dom.tabPallet.addEventListener('click', () => switchTab('pallet'));
         
+        // 初期状態設定
         if(isMobile()) {
             switchTab('truck');
         } else {
@@ -332,6 +368,13 @@
         if(!isMobile()) {
             dom.body.classList.remove('tab-truck-active');
             dom.body.classList.remove('tab-pallet-active');
+        } else {
+            // モバイルに戻った時、現在アクティブなタブのクラスを再適用
+            if(dom.tabTruck.classList.contains('active')) {
+                dom.body.classList.add('tab-truck-active');
+            } else {
+                dom.body.classList.add('tab-pallet-active');
+            }
         }
     }
 
@@ -366,6 +409,7 @@
             btn.innerHTML = `<strong>${p.name}</strong><small>${p.w}×${p.d}</small>`;
             
             btn.onclick = () => addPalletRequest(p);
+            // スマホ以外のみプレビュー
             btn.onmouseenter = () => { if(!isMobile()) showPreview(p); };
             btn.onmouseleave = () => hidePreview();
 
@@ -394,24 +438,28 @@
         dom.btnAddCustom.onmouseleave = () => hidePreview();
     }
 
-    // --- ロジック (重量対応) ---
-
-    // ユーザーが積載量を変更した時
     window.updateCapacityDisplay = function() {
         const val = parseInt(dom.truckCapacity.value) || 0;
         state.currentCapacity = val;
-        recalculateAndRender(); // ステータス再描画
+        recalculateAndRender(); 
     };
 
     function calculateAutoScale() {
         if (!state.currentTruck) return;
+        
+        // PCとスマホで余白計算を変える
         const paddingH = isMobile() ? 60 : 80; 
         const paddingW = 40; 
+
         const containerH = dom.centerCol.clientHeight - paddingH;
         const containerW = dom.centerCol.clientWidth - paddingW;
+        
         if(containerH <= 0 || containerW <= 0) return;
+
         const scaleH = containerH / state.currentTruck.L;
         const scaleW = containerW / state.currentTruck.W;
+        
+        // 90%に縮小して安全マージン確保
         currentScale = Math.min(scaleH, scaleW) * 0.90;
     }
 
@@ -419,8 +467,8 @@
         const t = TRUCKS[index];
         state.currentTruck = t;
         state.truckIndex = index;
-        state.currentCapacity = t.cap; // デフォルト積載量セット
-        dom.truckCapacity.value = t.cap; // 入力欄更新
+        state.currentCapacity = t.cap;
+        dom.truckCapacity.value = t.cap; 
         
         clearAllLogic(); 
         Array.from(dom.truckBtns.children).forEach(b => b.classList.remove('active'));
@@ -436,7 +484,7 @@
 
         state.currentTruck = { name: "カスタム荷台", L: L, W: W };
         state.truckIndex = -1;
-        state.currentCapacity = 0; // カスタムは0スタート
+        state.currentCapacity = 0;
         dom.truckCapacity.value = 0;
         
         clearAllLogic();
@@ -452,12 +500,8 @@
             return; 
         }
         
-        // 現在の重量設定を読み込む
         const currentWeight = parseInt(dom.palletWeight.value) || 0;
-        
-        // パレットオブジェクトに重量を追加してコピー
         const newPallet = { ...palletProto, weight: currentWeight };
-        
         const newHistory = [...state.history, newPallet];
         const result = calculateLayout(state.currentTruck, newHistory);
 
@@ -519,7 +563,7 @@
             placedItems.push({ 
                 x: x, y: y, w: p.w, d: p.d, 
                 name: p.name, typeClass: p.typeClass, index: i + 1,
-                weight: p.weight // 重量情報も保持
+                weight: p.weight
             });
         }
         return { success: true, items: placedItems, usedLength: Math.max(leftY, rightY), leftY: leftY, rightY: rightY };
@@ -556,7 +600,7 @@
              dom.truckBed.innerHTML = '';
              dom.count.textContent = '0 枚';
              dom.remainLen.textContent = '- / -';
-             dom.weightDisplay.textContent = '0 / 0 kg (0%)'; // リセット
+             dom.weightDisplay.textContent = '0 / 0 kg (0%)';
              dom.breakdown.innerHTML = '(内訳)';
              return;
         }
@@ -594,21 +638,19 @@
             el.style.width = (item.w * currentScale) + 'px';
             el.style.height = (item.d * currentScale) + 'px';
             
-            // 重量表示 (0の場合は表示しない、またはPCのみ表示の制御)
+            // 文字表示部分: クラスを使ってスマホ/PCで表示を切り替え
             const weightText = (item.weight > 0) ? `${item.weight}kg` : '';
-            
             el.innerHTML = `
                 <span class="p-index">${item.index}</span>
                 <span class="p-size">${item.w}x${item.d}</span>
                 <span class="p-weight">${weightText}</span>
             `;
+            
             dom.truckBed.appendChild(el);
         });
 
-        // --- ステータス更新 ---
         dom.count.textContent = items.length + " 枚";
         
-        // 重量計算
         const cap = state.currentCapacity || 0;
         let percent = 0;
         if(cap > 0) {
@@ -618,7 +660,6 @@
         let weightStr = `${totalWeight} / ${cap} kg (${percent}%)`;
         dom.weightDisplay.textContent = weightStr;
         
-        // オーバー判定
         if (cap > 0 && totalWeight > cap) {
             dom.weightDisplay.innerHTML = `${weightStr} <span style="color:red; font-weight:bold;">(OVER)</span>`;
             dom.weightDisplay.classList.add('text-over');
