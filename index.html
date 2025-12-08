@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>パレット積載シミュレーター (v5.1 スマホ表示修正版)</title>
+    <title>パレット積載シミュレーター (v6.5 スマホ最適化版)</title>
     <style>
         /* --- 全体設定 --- */
         * { box-sizing: border-box; } 
@@ -17,7 +17,7 @@
 
         body {
             display: flex; 
-            flex-direction: row; /* PCは横並び */
+            flex-direction: row; /* デフォルトはPC（横並び） */
         }
         
         /* --- 共通パーツ --- */
@@ -28,9 +28,12 @@
         button:hover { background: #e9ecef; }
         button:active { transform: translateY(1px); }
 
-        input[type="number"] { width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size: 13px; }
+        input[type="number"], select { padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        input[type="number"] { width: 70px; text-align: right; }
+        select { width: 100%; }
 
         /* --- PC用レイアウト (3カラム) --- */
+        /* PCでは常に全部表示。orderプロパティで並び順を保証 */
         #left-col {
             width: 270px; min-width: 270px; background: #fff; border-right: 1px solid #ccc; padding: 15px;
             display: flex; flex-direction: column; gap: 5px; z-index: 10; overflow-y: auto;
@@ -54,6 +57,7 @@
             order: 3; 
         }
 
+        /* PCではモバイル用パーツを隠す */
         #mobile-tabs { display: none; }
         .mobile-only { display: none; }
 
@@ -70,19 +74,20 @@
         .input-group { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; font-size: 12px; }
         .input-group label { flex: 1; color: #555; font-weight: bold; }
         
-        .weight-input-area {
-            background: #fff3cd; 
-            border: 1px solid #ffeeba; 
-            padding: 8px; 
-            border-radius: 4px; 
-            margin-bottom: 10px;
-        }
+        .setting-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 8px; border-radius: 4px; margin-bottom: 5px; }
+        .setting-box.blue { background: #e8f5e9; border-color: #c8e6c9; }
 
         .btn-apply { width: 100%; background: #3498db; color: white; border: none; padding: 8px; margin-top: 4px; font-size: 12px; border-radius: 4px;}
 
-        .pallet-btn { padding: 10px; text-align: left; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; width: 100%; border: 1px solid #ccc; background: #fff;}
-        .pallet-btn strong { font-size: 13px; }
-        .pallet-btn small { font-size: 10px; color: #666; }
+        #pallet-buttons-container { display: flex; flex-wrap: wrap; gap: 5px; }
+        .pallet-btn { 
+            padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            border: 1px solid #ccc; background: #fff; height: 55px;
+        }
+        .pallet-btn.full { width: 100%; }
+        .pallet-btn.half { width: calc(50% - 2.5px); }
+        .pallet-btn strong { font-size: 13px; display: block; }
+        .pallet-btn small { font-size: 10px; color: #666; display: block; margin-top: 2px;}
 
         .action-area { display: flex; gap: 8px; margin-top: 10px; }
         .action-btn { flex: 1; padding: 10px; font-weight: bold; font-size: 12px; }
@@ -98,20 +103,15 @@
 
         /* --- 荷台描画 --- */
         #truck-bed {
-            background-color: #f4f4f4; 
-            border: 2px solid #333; 
-            border-top: 10px solid #2c3e50;
-            position: relative; 
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-            transition: width 0.3s, height 0.3s;
-            box-sizing: content-box; /* はみ出し防止 */
+            background-color: #f4f4f4; border: 2px solid #333; border-top: 10px solid #2c3e50;
+            position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            transition: width 0.3s, height 0.3s; box-sizing: content-box; 
         }
-        
         .bed-header { position: absolute; top: -50px; left: 0; width: 100%; text-align: center; pointer-events: none; line-height: 1.4; white-space: nowrap; }
         .header-label { font-size: 11px; color: #666; font-weight: bold; display: block; }
         .header-name { font-size: 15px; color: #2c3e50; font-weight: bold; display: block; }
 
-        /* パレットスタイル */
+        /* --- パレット --- */
         .pallet {
             position: absolute; box-sizing: border-box; display: flex; 
             justify-content: center; align-items: center; flex-direction: column;
@@ -124,15 +124,28 @@
         .pallet.type-14 { background-color: #c0392b; }
         .pallet.type-9  { background-color: #f39c12; color: #333; }
         .pallet.type-custom { background-color: #27ae60; } 
+        
         .pallet.preview { opacity: 0.6; border: 2px dashed #333; background-color: rgba(100, 100, 100, 0.5) !important; color: #fff; z-index: 20; pointer-events: none; }
 
-        /* パレット内のテキスト */
-        .p-index { font-size: 12px; display: block; }
-        .p-size { font-size: 10px; opacity: 0.9; display: block; }
-        .p-weight { font-size: 10px; opacity: 0.9; display: block; color: #ffeb3b; }
+        /* 荷主ラベル (PC用) */
+        .owner-tag {
+            position: absolute; top: 0; left: 0; width: 24px; height: 24px;
+            color: #fff; font-size: 12px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            border-bottom-right-radius: 4px; box-shadow: 1px 1px 2px rgba(0,0,0,0.3); z-index: 2;
+        }
+        .owner-tag.owner-A { background-color: #e74c3c; } 
+        .owner-tag.owner-B { background-color: #e67e22; } 
+        .owner-tag.owner-C { background-color: #2ecc71; } 
+        .owner-tag.owner-D { background-color: #f1c40f; color:#333; } 
+        .owner-tag.owner-E { background-color: #34495e; } 
+
+        .p-index { font-size: 12px; display: block; z-index: 1; }
+        .p-size { font-size: 10px; opacity: 0.9; display: block; z-index: 1; }
+        .p-weight { font-size: 10px; opacity: 0.9; display: block; color: #ffeb3b; z-index: 1; }
 
         /* =========================================
-           レスポンシブ対応 (画面幅が狭い時)
+           スマホ完全対応 (CSSメディアクエリ)
            ========================================= */
         @media screen and (max-width: 768px) {
             body {
@@ -141,87 +154,82 @@
 
             /* --- タブメニュー (最上部固定) --- */
             #mobile-tabs {
-                display: flex !important;
-                height: 50px;
-                width: 100%;
-                flex: none; 
-                background: #f8f9fa;
-                border-bottom: 1px solid #ccc;
-                z-index: 200;
-                order: 1;
+                display: flex !important; height: 50px; width: 100%; flex: none; 
+                background: #f8f9fa; border-bottom: 1px solid #ccc; z-index: 200; order: 1;
             }
             .tab-btn {
-                flex: 1;
-                border: none;
-                background: transparent;
-                color: #888;
-                font-weight: bold;
-                font-size: 14px;
-                border-bottom: 3px solid transparent;
-                border-right: 1px solid #ddd;
+                flex: 1; border: none; background: transparent; color: #888;
+                font-weight: bold; font-size: 14px; border-bottom: 3px solid transparent; border-right: 1px solid #ddd;
             }
             .tab-btn:last-child { border-right: none; }
-            .tab-btn.active {
+            /* アクティブなタブのデザイン */
+            body.view-truck #tab-truck, 
+            body.view-pallet #tab-pallet {
                 background: #fff;
                 color: #2c3e50;
                 border-bottom: 3px solid #2c3e50;
             }
 
-            /* --- 描画エリア (Center Col) --- */
+            /* --- 描画エリア (上段) --- */
             #center-col {
-                order: 2; 
-                height: 40%;
-                width: 100%;
-                flex: none; 
-                padding: 50px 10px 10px 10px; 
-                border-bottom: 1px solid #aaa;
-                z-index: 2;
-                background: #cbd3da;
-                /* デフォルトは非表示、activeクラスで表示 */
+                order: 2; height: 40%; width: 100%; flex: none; 
+                padding: 50px 10px 10px 10px; border-bottom: 1px solid #aaa;
+                z-index: 2; background: #cbd3da;
+                /* デフォルト(truckモード)では非表示 */
                 display: none; 
             }
 
-            /* --- 操作パネル (Left/Right Cols) --- */
+            /* --- 操作パネル (下段) --- */
             #left-col, #right-col {
-                order: 3; 
-                width: 100% !important;
-                min-width: 0 !important;
-                flex: 1; /* 残りの高さを埋める */
-                padding: 15px;
-                overflow-y: auto; 
-                -webkit-overflow-scrolling: touch; 
-                display: none; /* デフォルト非表示 */
+                order: 3; width: 100% !important; flex: 1; padding: 15px;
+                overflow-y: auto; -webkit-overflow-scrolling: touch; 
                 border: none;
+                /* デフォルト非表示 */
+                display: none;
             }
 
-            /* --- 強制表示・非表示のルール (重要) --- */
+            /* --- 表示ロジック (CSSでスイッチ) --- */
             
-            /* モード1: 荷台設定 (初期) */
-            /* 荷台設定タブがアクティブなら、Leftを表示、他を隠す */
-            body.tab-truck-active #left-col { display: flex !important; }
-            body.tab-truck-active #center-col { display: none !important; }
-            body.tab-truck-active #right-col { display: none !important; }
+            /* 【モードA: 荷台設定 (bodyにクラスなし or view-truck)】 */
+            body:not(.view-pallet) #left-col { display: flex !important; }
+            body:not(.view-pallet) #center-col { display: none !important; }
+            body:not(.view-pallet) #right-col { display: none !important; }
+            body:not(.view-pallet) #tab-truck { background: #fff; color: #2c3e50; border-bottom: 3px solid #2c3e50; }
 
-            /* モード2: パレット配置 */
-            /* パレットタブがアクティブなら、Center(プレビュー)とRight(ボタン)を表示 */
-            body.tab-pallet-active #center-col { display: flex !important; }
-            body.tab-pallet-active #right-col { display: flex !important; }
-            body.tab-pallet-active #left-col { display: none !important; }
+            /* 【モードB: パレット配置 (body.view-pallet)】 */
+            body.view-pallet #center-col { display: flex !important; }
+            body.view-pallet #right-col { display: flex !important; }
+            body.view-pallet #left-col { display: none !important; }
 
             .mobile-only { display: block !important; }
 
-            /* スマホでのパレット内表示調整（サイズ・重量OFF） */
-            .p-size { display: none !important; }
-            .p-weight { display: none !important; }
-            .p-index { font-size: 14px !important; }
+            /* ★★★ スマホ専用：荷主カラー＆シンプル表示 ★★★ */
+            
+            /* 荷主ラベル(タグ)はスマホでは消す */
+            .pallet[class*="owner-"] .owner-tag { display: none !important; }
+
+            /* パレット本体の色を荷主カラーで上書き */
+            .pallet.owner-A { background-color: #e74c3c !important; color: #fff; }
+            .pallet.owner-B { background-color: #e67e22 !important; color: #fff; }
+            .pallet.owner-C { background-color: #2ecc71 !important; color: #fff; }
+            .pallet.owner-D { background-color: #f1c40f !important; color: #333 !important; }
+            .pallet.owner-E { background-color: #34495e !important; color: #fff; }
+
+            /* スマホ文字調整 */
+            .p-size, .p-weight { display: none !important; } /* サイズと重量は消す */
+            .p-index { 
+                font-size: 18px !important; /* 数字を大きく */
+                font-weight: bold;
+                margin: auto; /* 中央寄せ */
+            }
         }
     </style>
 </head>
-<body class="tab-truck-active"> 
+<body>
 
     <div id="mobile-tabs">
-        <button class="tab-btn active" id="tab-truck">1. 荷台設定</button>
-        <button class="tab-btn" id="tab-pallet">2. パレット配置</button>
+        <button class="tab-btn" id="tab-truck" onclick="switchMode('truck')">1. 荷台設定</button>
+        <button class="tab-btn" id="tab-pallet" onclick="switchMode('pallet')">2. パレット配置</button>
     </div>
 
     <div id="left-col">
@@ -229,7 +237,7 @@
         <span class="column-header" style="margin-top:0;">定型サイズ</span>
         <div id="truck-buttons"></div>
         
-        <div class="weight-input-area">
+        <div class="setting-box">
             <div class="input-group">
                 <label>最大積載量 (kg)</label>
                 <input type="number" id="truck-capacity" value="0" onchange="updateCapacityDisplay()">
@@ -256,15 +264,26 @@
     <div id="right-col">
         <h2>パレットを追加</h2>
         
-        <div class="weight-input-area" style="background:#e8f5e9; border-color:#c8e6c9;">
+        <div class="setting-box blue">
             <div class="input-group">
-                <label>パレット重量 (kg)</label>
+                <label>重量(kg)</label>
                 <input type="number" id="pallet-weight" value="0" placeholder="0">
+            </div>
+            <div class="input-group">
+                <label>荷主(ラベル)</label>
+                <select id="owner-select" style="flex:1; margin-left:5px;">
+                    <option value="default">指定なし</option>
+                    <option value="A">荷主A (赤)</option>
+                    <option value="B">荷主B (橙)</option>
+                    <option value="C">荷主C (緑)</option>
+                    <option value="D">荷主D (黄)</option>
+                    <option value="E">荷主E (黒)</option>
+                </select>
             </div>
         </div>
 
         <span class="column-header" style="margin-top:0;">定型パレット</span>
-        <div id="pallet-buttons"></div>
+        <div id="pallet-buttons-container"></div>
         
         <span class="column-header">カスタム (mm)</span>
         <div class="custom-area">
@@ -302,13 +321,13 @@
     ];
 
     const PALLETS = [
-        { id: '11',  name: "11型 正方形", w: 1100, d: 1100, typeClass: 'type-11' },
-        { id: '12v', name: "12型 縦",     w: 1000, d: 1200, typeClass: 'type-12' },
-        { id: '12h', name: "12型 横",     w: 1200, d: 1000, typeClass: 'type-12' },
-        { id: '14v', name: "14型 縦",     w: 1100, d: 1400, typeClass: 'type-14' },
-        { id: '14h', name: "14型 横",     w: 1400, d: 1100, typeClass: 'type-14' },
-        { id: '9v',  name: "9型 縦",      w: 900,  d: 1100, typeClass: 'type-9' },
-        { id: '9h',  name: "9型 横",      w: 1100, d: 900,  typeClass: 'type-9' }
+        { id: '11',  name: "11型 正方形", w: 1100, d: 1100, typeClass: 'type-11', widthType: 'full' },
+        { id: '12v', name: "12型 縦",     w: 1000, d: 1200, typeClass: 'type-12', widthType: 'half' },
+        { id: '12h', name: "12型 横",     w: 1200, d: 1000, typeClass: 'type-12', widthType: 'half' },
+        { id: '14v', name: "14型 縦",     w: 1100, d: 1400, typeClass: 'type-14', widthType: 'half' },
+        { id: '14h', name: "14型 横",     w: 1400, d: 1100, typeClass: 'type-14', widthType: 'half' },
+        { id: '9v',  name: "9型 縦",      w: 900,  d: 1100, typeClass: 'type-9', widthType: 'half' },
+        { id: '9h',  name: "9型 横",      w: 1100, d: 900,  typeClass: 'type-9', widthType: 'half' }
     ];
 
     let currentScale = 0.085; 
@@ -319,7 +338,7 @@
         centerCol: document.getElementById('center-col'),
         truckBed: document.getElementById('truck-bed'),
         truckBtns: document.getElementById('truck-buttons'),
-        palletBtns: document.getElementById('pallet-buttons'),
+        palletBtnsContainer: document.getElementById('pallet-buttons-container'),
         count: document.getElementById('count'),
         remainLen: document.getElementById('remain-len'),
         weightDisplay: document.getElementById('weight-display'),
@@ -331,66 +350,36 @@
         customPalletW: document.getElementById('custom-pallet-w'),
         customPalletD: document.getElementById('custom-pallet-d'),
         palletWeight: document.getElementById('pallet-weight'),
+        ownerSelect: document.getElementById('owner-select'),
         btnAddCustom: document.getElementById('btn-add-custom'),
-        leftCol: document.getElementById('left-col'),
-        rightCol: document.getElementById('right-col'),
-        tabTruck: document.getElementById('tab-truck'),
-        tabPallet: document.getElementById('tab-pallet')
     };
 
     function init() {
         createButtons();
         setupCustomEvents();
         window.addEventListener('resize', onResize);
-        
-        dom.tabTruck.addEventListener('click', () => switchTab('truck'));
-        dom.tabPallet.addEventListener('click', () => switchTab('pallet'));
-        
-        // 初期状態設定
-        if(isMobile()) {
-            switchTab('truck');
-        } else {
-            dom.body.classList.remove('tab-truck-active');
-            dom.body.classList.remove('tab-pallet-active');
-        }
     }
 
     function isMobile() {
         return window.innerWidth <= 768;
     }
 
+    // ★シンプルになったモード切替★
+    window.switchMode = function(mode) {
+        if (mode === 'truck') {
+            dom.body.classList.remove('view-pallet');
+        } else {
+            dom.body.classList.add('view-pallet');
+            // 切り替わった瞬間にリサイズ計算
+            setTimeout(() => onResize(), 50);
+        }
+    };
+
     function onResize() {
         if(state.currentTruck) {
             calculateAutoScale();
             updateTruckView();
             recalculateAndRender();
-        }
-        if(!isMobile()) {
-            dom.body.classList.remove('tab-truck-active');
-            dom.body.classList.remove('tab-pallet-active');
-        } else {
-            // モバイルに戻った時、現在アクティブなタブのクラスを再適用
-            if(dom.tabTruck.classList.contains('active')) {
-                dom.body.classList.add('tab-truck-active');
-            } else {
-                dom.body.classList.add('tab-pallet-active');
-            }
-        }
-    }
-
-    function switchTab(target) {
-        if (target === 'truck') {
-            dom.tabTruck.classList.add('active');
-            dom.tabPallet.classList.remove('active');
-            dom.body.classList.add('tab-truck-active');
-            dom.body.classList.remove('tab-pallet-active');
-        } else {
-            dom.tabTruck.classList.remove('active');
-            dom.tabPallet.classList.add('active');
-            dom.body.classList.remove('tab-truck-active');
-            dom.body.classList.add('tab-pallet-active');
-            
-            setTimeout(() => { onResize(); }, 50);
         }
     }
 
@@ -405,15 +394,16 @@
 
         PALLETS.forEach(p => {
             const btn = document.createElement('button');
-            btn.className = 'pallet-btn';
-            btn.innerHTML = `<strong>${p.name}</strong><small>${p.w}×${p.d}</small>`;
+            const sizeClass = (p.widthType === 'full') ? 'full' : 'half';
+            btn.className = `pallet-btn ${sizeClass}`;
+            const nameShort = p.name.replace('型 ', '型<br>');
+            btn.innerHTML = `<strong>${nameShort}</strong><small>${p.w}×${p.d}</small>`;
             
             btn.onclick = () => addPalletRequest(p);
-            // スマホ以外のみプレビュー
             btn.onmouseenter = () => { if(!isMobile()) showPreview(p); };
             btn.onmouseleave = () => hidePreview();
 
-            dom.palletBtns.appendChild(btn);
+            dom.palletBtnsContainer.appendChild(btn);
         });
     }
 
@@ -446,20 +436,13 @@
 
     function calculateAutoScale() {
         if (!state.currentTruck) return;
-        
-        // PCとスマホで余白計算を変える
         const paddingH = isMobile() ? 60 : 80; 
         const paddingW = 40; 
-
         const containerH = dom.centerCol.clientHeight - paddingH;
         const containerW = dom.centerCol.clientWidth - paddingW;
-        
         if(containerH <= 0 || containerW <= 0) return;
-
         const scaleH = containerH / state.currentTruck.L;
         const scaleW = containerW / state.currentTruck.W;
-        
-        // 90%に縮小して安全マージン確保
         currentScale = Math.min(scaleH, scaleW) * 0.90;
     }
 
@@ -495,13 +478,20 @@
 
     function addPalletRequest(palletProto) {
         if (!state.currentTruck) { 
-            if(isMobile()) { showError("◀ 荷台を選んでください"); switchTab('truck'); } 
+            if(isMobile()) { showError("◀ 荷台を選んでください"); switchMode('truck'); } 
             else { showError("◀ 荷台を選択してください"); }
             return; 
         }
         
         const currentWeight = parseInt(dom.palletWeight.value) || 0;
-        const newPallet = { ...palletProto, weight: currentWeight };
+        const currentOwner = dom.ownerSelect.value; 
+
+        const newPallet = { 
+            ...palletProto, 
+            weight: currentWeight,
+            owner: currentOwner 
+        };
+        
         const newHistory = [...state.history, newPallet];
         const result = calculateLayout(state.currentTruck, newHistory);
 
@@ -563,7 +553,7 @@
             placedItems.push({ 
                 x: x, y: y, w: p.w, d: p.d, 
                 name: p.name, typeClass: p.typeClass, index: i + 1,
-                weight: p.weight
+                weight: p.weight, owner: p.owner
             });
         }
         return { success: true, items: placedItems, usedLength: Math.max(leftY, rightY), leftY: leftY, rightY: rightY };
@@ -632,15 +622,30 @@
             totalWeight += (item.weight || 0);
 
             const el = document.createElement('div');
-            el.className = `pallet ${item.typeClass}`;
+            let finalClass = item.typeClass;
+            
+            // ★Javascript追加部分：荷主がいる場合、親divにもクラスを付与してCSSで制御しやすくする
+            if (item.owner && item.owner !== 'default') {
+                finalClass += ` owner-${item.owner}`;
+            }
+            
+            el.className = `pallet ${finalClass}`;
             el.style.left = (item.x * currentScale) + 'px';
             el.style.top  = (item.y * currentScale) + 'px';
             el.style.width = (item.w * currentScale) + 'px';
             el.style.height = (item.d * currentScale) + 'px';
             
-            // 文字表示部分: クラスを使ってスマホ/PCで表示を切り替え
             const weightText = (item.weight > 0) ? `${item.weight}kg` : '';
+            
+            let ownerLabel = '';
+            // 既存ロジック：タグ用のHTMLも生成しておく（PCでは表示、スマホではCSSで消す）
+            if (item.owner && item.owner !== 'default') {
+                const ownerColorClass = `owner-${item.owner}`;
+                ownerLabel = `<div class="owner-tag ${ownerColorClass}">${item.owner}</div>`;
+            }
+
             el.innerHTML = `
+                ${ownerLabel}
                 <span class="p-index">${item.index}</span>
                 <span class="p-size">${item.w}x${item.d}</span>
                 <span class="p-weight">${weightText}</span>
@@ -677,7 +682,13 @@
             dom.breakdown.innerHTML = "パレットなし";
         } else {
             const counts = {};
-            items.forEach(item => { const n = item.name; counts[n] = (counts[n] || 0) + 1; });
+            items.forEach(item => { 
+                let name = item.name;
+                if(item.owner && item.owner !== 'default') {
+                    name += ` (荷主${item.owner})`;
+                }
+                counts[name] = (counts[name] || 0) + 1; 
+            });
             let html = [];
             for (const [name, num] of Object.entries(counts)) {
                 html.push(`<div>${name}: <strong>${num}</strong></div>`);
