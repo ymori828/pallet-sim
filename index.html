@@ -141,6 +141,95 @@
         }
         #view-2d-wrapper.hide { display: none; }
 
+        /* パレット選択・編集 */
+        .pallet.selectable { cursor: pointer; }
+        .pallet.selected {
+            outline: 3px solid #f1c40f !important; outline-offset: -1px;
+            box-shadow: 0 0 10px rgba(241,196,15,0.6);
+            z-index: 25 !important;
+        }
+        .edit-panel {
+            display: none; padding: 10px; background: #fff8e1; border: 1px solid #ffe082;
+            border-radius: 6px; margin-bottom: 8px;
+        }
+        .edit-panel.show { display: block; }
+        .edit-panel h3 {
+            margin: 0 0 8px 0; font-size: 13px; color: #6d4c00;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .edit-panel .close-btn {
+            background: none; border: none; font-size: 16px; color: #999;
+            cursor: pointer; padding: 0 4px;
+        }
+        .edit-panel .input-group { margin-bottom: 6px; }
+        .edit-panel .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+        .edit-panel .btn-save {
+            flex: 1; padding: 7px; background: #f39c12; color: #fff;
+            border: none; border-radius: 4px; font-size: 12px; font-weight: bold;
+        }
+        .edit-panel .btn-delete {
+            padding: 7px 12px; background: #fff0f0; color: #c0392b;
+            border: 1px solid #ffcccc; border-radius: 4px; font-size: 12px; font-weight: bold;
+        }
+
+        /* 空パレスタック */
+        .stack-section { margin-top: 8px; }
+        .stack-toggle-btn {
+            width: 100%; padding: 8px; font-size: 12px; font-weight: bold;
+            background: #fff8e1; border: 1px solid #ffe082; border-radius: 4px;
+            color: #6d4c00; display: flex; align-items: center; justify-content: space-between;
+        }
+        .stack-toggle-btn.active { background: #fff3cd; border-color: #ffc107; }
+        .stack-toggle-btn .arrow { transition: transform 0.2s; font-size: 10px; }
+        .stack-toggle-btn.active .arrow { transform: rotate(90deg); }
+        .stack-panel {
+            display: none; margin-top: 6px; padding: 10px; background: #fffde7;
+            border: 1px solid #ffe082; border-radius: 6px;
+        }
+        .stack-panel.open { display: block; }
+        .stack-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; }
+        .stack-row label { flex: 1; color: #555; font-weight: bold; }
+        .stack-counter {
+            display: flex; align-items: center; gap: 0;
+            border: 1px solid #ccc; border-radius: 4px; overflow: hidden;
+        }
+        .stack-counter button {
+            width: 32px; height: 30px; border: none; background: #f0f0f0;
+            font-size: 16px; font-weight: bold; color: #333; border-radius: 0;
+        }
+        .stack-counter button:hover { background: #e0e0e0; }
+        .stack-counter .stack-count-display {
+            width: 40px; text-align: center; font-size: 14px; font-weight: bold;
+            border-left: 1px solid #ccc; border-right: 1px solid #ccc;
+            padding: 4px 0; background: #fff;
+        }
+        .stack-total {
+            font-size: 13px; font-weight: bold; color: #2c3e50;
+            text-align: center; padding: 4px; background: #fff9c4; border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .stack-visual {
+            display: flex; align-items: flex-end; justify-content: center;
+            height: 100px; padding: 4px 0; gap: 0; flex-direction: column-reverse;
+            background: #fff; border: 1px solid #e0e0e0; border-radius: 4px;
+            overflow: hidden; position: relative;
+        }
+        .stack-visual-layer {
+            width: 60%; margin: 0 auto; height: 0; min-height: 2px;
+            background: #8d6e63; border: 1px solid #5d4037;
+            border-radius: 1px; transition: all 0.15s; box-sizing: border-box;
+        }
+        .stack-visual-label {
+            position: absolute; bottom: 2px; right: 4px; font-size: 9px; color: #999;
+        }
+        .stack-visual-limit {
+            position: absolute; left: 0; right: 0; border-top: 1px dashed #e74c3c;
+            pointer-events: none; z-index: 2;
+        }
+        .stack-visual-limit-text {
+            position: absolute; right: 2px; top: -12px; font-size: 8px; color: #e74c3c; font-weight: bold;
+        }
+
         /* 高さバー */
         .height-bar-box { display: none; margin-top: 8px; padding: 8px; background: #f8f0ff; border: 1px solid #e0d0f0; border-radius: 6px; }
         .height-bar-box.show { display: block; }
@@ -199,6 +288,18 @@
             .pallet.owner-E { background-color: #34495e !important; color: #fff; }
             .p-size, .p-weight { display: none !important; }
             .p-index { font-size: 18px !important; font-weight: bold; margin: auto; }
+            /* スタックラベルはモバイルでも番号の下に表示 */
+            .pallet span[style*="font-size:9px"] { font-size: 11px !important; display: block !important; }
+            /* 編集パネルをモバイルで目立たせる */
+            .edit-panel.show {
+                position: sticky; top: 0; z-index: 50;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            }
+            /* 選択中パレットのハイライトを太く */
+            .pallet.selected {
+                outline-width: 4px !important;
+                box-shadow: 0 0 14px rgba(241,196,15,0.8) !important;
+            }
             #view-toggle { top: 8px; right: 8px; }
         }
     </style>
@@ -246,6 +347,46 @@
         <div id="three-hint">ドラッグで回転 / スクロールでズーム</div>
     </div>
     <div id="right-col">
+        <div class="edit-panel" id="edit-panel">
+            <h3>
+                <span id="edit-title">パレット #1 を編集</span>
+                <button class="close-btn" onclick="deselectPallet()">✕</button>
+            </h3>
+            <div class="input-group">
+                <label>重量 (kg)</label>
+                <input type="number" id="edit-weight" value="0">
+            </div>
+            <div class="input-group">
+                <label>高さ (mm)</label>
+                <input type="number" id="edit-height" value="1500" step="10">
+            </div>
+            <div class="input-group">
+                <label>荷主(ラベル)</label>
+                <select id="edit-owner" style="flex:1; margin-left:5px;">
+                    <option value="default">指定なし</option>
+                    <option value="A">荷主A (赤)</option>
+                    <option value="B">荷主B (橙)</option>
+                    <option value="C">荷主C (緑)</option>
+                    <option value="D">荷主D (黄)</option>
+                    <option value="E">荷主E (黒)</option>
+                </select>
+            </div>
+            <div id="edit-stack-area" style="display:none;">
+                <div class="input-group">
+                    <label>1枚の高さ (mm)</label>
+                    <input type="number" id="edit-stack-single-h" value="150" step="10">
+                </div>
+                <div class="input-group">
+                    <label>枚数</label>
+                    <input type="number" id="edit-stack-count" value="1" min="1">
+                </div>
+                <div style="font-size:10px; color:#888;">※高さは 1枚の高さ×枚数 で自動計算</div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-save" onclick="applyEdit()">✓ 適用</button>
+                <button class="btn-delete" onclick="deleteSelectedPallet()">✖ 削除</button>
+            </div>
+        </div>
         <h2>パレットを追加</h2>
         <div class="setting-box blue">
             <div class="input-group">
@@ -266,6 +407,32 @@
                     <option value="D">荷主D (黄)</option>
                     <option value="E">荷主E (黒)</option>
                 </select>
+            </div>
+        </div>
+        <div class="stack-section">
+            <button class="stack-toggle-btn" id="stack-toggle" onclick="toggleStackMode()">
+                <span>空パレ積みモード</span><span class="arrow">▶</span>
+            </button>
+            <div class="stack-panel" id="stack-panel">
+                <div class="stack-row">
+                    <label>1枚の高さ (mm)</label>
+                    <input type="number" id="stack-single-h" value="150" step="10" style="width:70px;" onchange="updateStackVisual()">
+                </div>
+                <div class="stack-row">
+                    <label>枚数</label>
+                    <div class="stack-counter">
+                        <button onclick="changeStackCount(-1)">−</button>
+                        <div class="stack-count-display" id="stack-count">1</div>
+                        <button onclick="changeStackCount(1)">＋</button>
+                    </div>
+                </div>
+                <div class="stack-total" id="stack-total">合計高さ: 150 mm (1枚)</div>
+                <div class="stack-visual" id="stack-visual">
+                    <div class="stack-visual-label">断面イメージ</div>
+                </div>
+                <div style="font-size:10px; color:#888; margin-top:6px; text-align:center;">
+                    ↓ 下のパレットボタンで荷台に配置
+                </div>
             </div>
         </div>
         <span class="column-header" style="margin-top:0;">定型パレット</span>
@@ -376,6 +543,159 @@
     };
 
     function isMobile() { return window.innerWidth <= 768; }
+
+    /* ============================================================
+       パレット選択・編集
+       ============================================================ */
+    var selectedIndex = -1; // history配列のインデックス（0始まり）
+
+    function selectPallet(histIndex) {
+        selectedIndex = histIndex;
+        var p = state.history[histIndex];
+        if (!p) return;
+
+        // 編集パネルに値をセット
+        document.getElementById("edit-title").textContent = "パレット #" + (histIndex + 1) + " を編集";
+        document.getElementById("edit-weight").value = p.weight || 0;
+        document.getElementById("edit-height").value = p.height || 1500;
+        document.getElementById("edit-owner").value = p.owner || "default";
+
+        // スタック情報
+        var stackArea = document.getElementById("edit-stack-area");
+        if (p.stackInfo) {
+            stackArea.style.display = "block";
+            document.getElementById("edit-stack-single-h").value = p.stackInfo.singleH;
+            document.getElementById("edit-stack-count").value = p.stackInfo.count;
+        } else {
+            stackArea.style.display = "none";
+        }
+
+        var editPanel = document.getElementById("edit-panel");
+        editPanel.classList.add("show");
+        highlightSelected();
+
+        // モバイルではパネルまでスクロール
+        if (isMobile()) {
+            setTimeout(function() {
+                editPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 100);
+        }
+    }
+
+    window.deselectPallet = function() {
+        selectedIndex = -1;
+        document.getElementById("edit-panel").classList.remove("show");
+        highlightSelected();
+    };
+
+    function highlightSelected() {
+        var pallets = dom.truckBed2d.querySelectorAll(".pallet:not(.preview)");
+        for (var i = 0; i < pallets.length; i++) {
+            pallets[i].classList.remove("selected");
+        }
+        if (selectedIndex >= 0) {
+            // パレットDOM要素はヘッダー分+1なのでインデックスで探す
+            var targets = dom.truckBed2d.querySelectorAll(".pallet.selectable");
+            if (targets[selectedIndex]) {
+                targets[selectedIndex].classList.add("selected");
+            }
+        }
+    }
+
+    window.applyEdit = function() {
+        if (selectedIndex < 0 || selectedIndex >= state.history.length) return;
+        var p = state.history[selectedIndex];
+
+        p.weight = parseInt(document.getElementById("edit-weight").value) || 0;
+        p.owner = document.getElementById("edit-owner").value;
+
+        if (p.stackInfo) {
+            var singleH = parseInt(document.getElementById("edit-stack-single-h").value) || 150;
+            var count = Math.max(1, parseInt(document.getElementById("edit-stack-count").value) || 1);
+            p.stackInfo.singleH = singleH;
+            p.stackInfo.count = count;
+            p.height = singleH * count;
+        } else {
+            p.height = parseInt(document.getElementById("edit-height").value) || 1500;
+        }
+
+        recalculateAndRender();
+        // 選択状態を維持して再ハイライト
+        highlightSelected();
+    };
+
+    window.deleteSelectedPallet = function() {
+        if (selectedIndex < 0 || selectedIndex >= state.history.length) return;
+        state.history.splice(selectedIndex, 1);
+        selectedIndex = -1;
+        document.getElementById("edit-panel").classList.remove("show");
+        recalculateAndRender();
+    };
+
+    /* ============================================================
+       空パレスタックモード
+       ============================================================ */
+    var stackMode = false;
+    var stackCount = 1;
+
+    window.toggleStackMode = function() {
+        stackMode = !stackMode;
+        var btn = document.getElementById("stack-toggle");
+        var panel = document.getElementById("stack-panel");
+        btn.classList.toggle("active", stackMode);
+        panel.classList.toggle("open", stackMode);
+        if (stackMode) {
+            updateStackVisual();
+        }
+    };
+
+    window.changeStackCount = function(delta) {
+        stackCount = Math.max(1, stackCount + delta);
+        document.getElementById("stack-count").textContent = stackCount;
+        updateStackVisual();
+    };
+
+    window.updateStackVisual = function() {
+        var singleH = parseInt(document.getElementById("stack-single-h").value) || 150;
+        var totalH = singleH * stackCount;
+        document.getElementById("stack-total").textContent =
+            "合計高さ: " + totalH + " mm (" + stackCount + "枚)";
+
+        // ミニ断面図を描画
+        var visual = document.getElementById("stack-visual");
+        // 既存のレイヤーとリミットラインをクリア（ラベルは残す）
+        var oldLayers = visual.querySelectorAll(".stack-visual-layer, .stack-visual-limit");
+        for (var i = 0; i < oldLayers.length; i++) oldLayers[i].remove();
+
+        // 荷台高さ上限
+        var truckH = state.currentTruckHeight || 0;
+        var maxDisplayH = Math.max(totalH, truckH, singleH * 3) * 1.1;
+        var containerH = 92; // px (visualの内部高さ概算)
+
+        // 荷台高さのリミットライン
+        if (truckH > 0) {
+            var limitPx = containerH - (truckH / maxDisplayH) * containerH;
+            var limitLine = document.createElement("div");
+            limitLine.className = "stack-visual-limit";
+            limitLine.style.top = limitPx + "px";
+            limitLine.innerHTML = '<span class="stack-visual-limit-text">荷台 ' + truckH + 'mm</span>';
+            visual.appendChild(limitLine);
+        }
+
+        // パレット層を描画
+        var layerPx = Math.max(2, (singleH / maxDisplayH) * containerH);
+        for (var j = 0; j < stackCount; j++) {
+            var layer = document.createElement("div");
+            layer.className = "stack-visual-layer";
+            layer.style.height = layerPx + "px";
+            var isOver = truckH > 0 && (singleH * (j + 1)) > truckH;
+            if (isOver) {
+                layer.style.background = "#e57373";
+                layer.style.borderColor = "#c62828";
+            }
+            visual.appendChild(layer);
+        }
+    };
 
     /* ============================================================
        Three.js セットアップ
@@ -853,6 +1173,10 @@
         state.currentTruckHeight = t.H;
         dom.truckCapacity.value = t.cap;
         dom.truckHeight.value = t.H;
+        // カスタム欄にも値を同期
+        dom.customTruckL.value = t.L;
+        dom.customTruckW.value = t.W;
+        dom.customTruckH.value = t.H;
         clearAllLogic();
         var btns = dom.truckBtns.children;
         for (var i = 0; i < btns.length; i++) btns[i].classList.remove("active");
@@ -897,7 +1221,21 @@
         var w = parseInt(dom.palletWeight.value) || 0;
         var h = parseInt(dom.palletHeight.value) || 1500;
         var o = dom.ownerSelect.value;
-        var newP = { id: proto.id, name: proto.name, w: proto.w, d: proto.d, typeClass: proto.typeClass, weight: w, height: h, owner: o };
+
+        // 空パレスタックモード
+        var stackInfo = null;
+        if (stackMode) {
+            var singleH = parseInt(document.getElementById("stack-single-h").value) || 150;
+            h = singleH * stackCount;
+            w = 0; // 空パレットは重量0
+            stackInfo = { singleH: singleH, count: stackCount };
+        }
+
+        var newP = {
+            id: proto.id, name: proto.name, w: proto.w, d: proto.d,
+            typeClass: proto.typeClass, weight: w, height: h, owner: o,
+            stackInfo: stackInfo
+        };
         var newHist = state.history.concat([newP]);
         var result = calculateLayout(state.currentTruck, newHist);
         if (result.success) {
@@ -953,7 +1291,8 @@
             placedItems.push({
                 x: x, y: y, w: p.w, d: p.d, name: p.name,
                 typeClass: p.typeClass, index: i + 1,
-                weight: p.weight || 0, height: p.height || 1500, owner: p.owner
+                weight: p.weight || 0, height: p.height || 1500, owner: p.owner,
+                stackInfo: p.stackInfo || null
             });
         }
         return { success: true, items: placedItems, usedLength: Math.max(leftY, rightY), leftY: leftY, rightY: rightY };
@@ -1041,9 +1380,16 @@
             var item = items[i];
             var isOver = truckH > 0 && item.height > truckH;
             var el = document.createElement("div");
-            var cls = "pallet " + item.typeClass;
+            var cls = "pallet selectable " + item.typeClass;
             if (item.owner && item.owner !== "default") cls += " owner-" + item.owner;
+            if (i === selectedIndex) cls += " selected";
             el.className = cls;
+            (function(idx) {
+                el.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    selectPallet(idx);
+                });
+            })(i);
             el.style.left   = (item.x * currentScale) + "px";
             el.style.top    = (item.y * currentScale) + "px";
             el.style.width  = (item.w * currentScale) + "px";
@@ -1055,9 +1401,14 @@
                 ow = '<div class="owner-tag owner-' + item.owner + '">' + item.owner + '</div>';
             }
             var hi = item.height > 0 ? "H" + item.height : "";
+            var stackLabel = "";
+            if (item.stackInfo) {
+                stackLabel = '<span style="font-size:9px;opacity:0.85;display:block;">空×' + item.stackInfo.count + '枚</span>';
+            }
             el.innerHTML = ow +
                 '<span class="p-index">' + item.index + '</span>' +
                 '<span class="p-size">' + item.w + 'x' + item.d + ' ' + hi + '</span>' +
+                stackLabel +
                 '<span class="p-weight">' + wt + '</span>' +
                 (isOver ? '<span class="height-warn">高さ超</span>' : '');
             dom.truckBed2d.appendChild(el);
@@ -1099,15 +1450,24 @@
             dom.breakdown.innerHTML = "パレットなし";
         } else {
             var counts = {};
+            var stackTotals = {};
             for (var j = 0; j < items.length; j++) {
                 var nm = items[j].name;
-                if (items[j].owner && items[j].owner !== "default") nm += " (荷主" + items[j].owner + ")";
+                if (items[j].stackInfo) nm += " (空×" + items[j].stackInfo.count + ")";
+                if (items[j].owner && items[j].owner !== "default") nm += " 荷主" + items[j].owner;
                 counts[nm] = (counts[nm] || 0) + 1;
+                if (items[j].stackInfo) {
+                    stackTotals[nm] = (stackTotals[nm] || 0) + items[j].stackInfo.count;
+                }
             }
             var parts = [];
             for (var key in counts) {
                 if (counts.hasOwnProperty(key)) {
-                    parts.push("<div>" + key + ": <strong>" + counts[key] + "</strong></div>");
+                    var line = key + ": <strong>" + counts[key] + "</strong>";
+                    if (stackTotals[key]) {
+                        line += " <span style='color:#6d4c00;font-size:10px;'>(計 " + stackTotals[key] + " 枚)</span>";
+                    }
+                    parts.push("<div>" + line + "</div>");
                 }
             }
             dom.breakdown.innerHTML = parts.join("");
@@ -1139,6 +1499,11 @@
     createButtons();
     setupCustomEvents();
     window.addEventListener("resize", onResize);
+    dom.truckBed2d.addEventListener("click", function(e) {
+        if (e.target === dom.truckBed2d || e.target.className === "bed-header") {
+            deselectPallet();
+        }
+    });
 
 })();
 </script>
